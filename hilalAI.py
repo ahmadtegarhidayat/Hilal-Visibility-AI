@@ -70,6 +70,7 @@ def print_header():
     print("\n")
 
 def tampilkan_plot_universal(figure):
+    """Menampilkan plot dengan ukuran fix yang rapi."""
     is_notebook = False
     try:
         from IPython import get_ipython
@@ -81,6 +82,8 @@ def tampilkan_plot_universal(figure):
         clear_output(wait=True); display(figure)
     else:
         print("📊 Dashboard Visualisasi Telah Terbuka...")
+        # Menggunakan tight_layout untuk otomatis merapikan margin
+        plt.tight_layout()
         plt.show()
 
 def pause_return_menu():
@@ -88,12 +91,11 @@ def pause_return_menu():
     input("👉 Tekan [ENTER] untuk kembali ke Menu Utama...")
 
 # ==============================================================================
-# 🔭 ENGINE ASTRONOMI (SKYFIELD)
+# 🔭 ENGINE ASTRONOMI (SKYFIELD + YALLOP + IJTIMAK)
 # ==============================================================================
 def hitung_astronomi(lat, lon, tgl_str, verbose=True):
     if verbose: print("🔭 Menghitung data hisab ephemeris...", end="\r")
     
-    # Auto-download Ephemeris
     try: eph = load('de421.bsp')
     except: 
         if verbose: print("\n📥 Mendownload file ephemeris (de421.bsp)...")
@@ -106,10 +108,9 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
     try:
         tgl_dt = datetime.strptime(tgl_str, "%Y-%m-%d")
         
-        # 1. Cari Sunset (Range UTC 10:00 - 15:00 = Sore WIB)
+        # 1. Cari Sunset
         t_start_sun = ts.utc(tgl_dt.year, tgl_dt.month, tgl_dt.day, 10) 
         t_end_sun   = ts.utc(tgl_dt.year, tgl_dt.month, tgl_dt.day, 15)
-        
         f_geo_sun = almanac.risings_and_settings(eph, sun, topos, horizon_degrees=-0.8333)
         times_s, events_s = almanac.find_discrete(t_start_sun, t_end_sun, f_geo_sun)
         
@@ -118,17 +119,15 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
             return None
         t_sunset = times_s[0]
 
-        # 2. Hitung Posisi Bulan & Matahari saat Sunset
+        # 2. Posisi saat Sunset
         observer = (earth + topos).at(t_sunset)
         m = observer.observe(moon).apparent()
         s = observer.observe(sun).apparent()
-        
         alt_m, az_m, _ = m.altaz()
         alt_s, az_s, _ = s.altaz()
 
-        # 3. Cari Moonset (Logika Smart-Lag)
+        # 3. Moonset (Smart-Lag)
         f_geo_moon = almanac.risings_and_settings(eph, moon, topos, horizon_degrees=-0.8333)
-        
         if alt_m.degrees > 0:
             t_search_end = ts.utc(tgl_dt.year, tgl_dt.month, tgl_dt.day, t_sunset.utc_datetime().hour + 6)
             times_m, _ = almanac.find_discrete(t_sunset, t_search_end, f_geo_moon)
@@ -138,27 +137,49 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
             times_m, _ = almanac.find_discrete(t_search_start, t_sunset, f_geo_moon)
             t_moonset = times_m[-1] if len(times_m) > 0 else None
 
-        # 4. Hitung Lag
+        # 4. Lag & Parameter Lain
         if t_moonset is not None:
             lag_minutes = (t_moonset.utc_datetime() - t_sunset.utc_datetime()).total_seconds() / 60
         else:
             lag_minutes = alt_m.degrees * 4 
 
-        # 5. Parameter Lain
         illumination_fraction = m.fraction_illuminated(sun)
         w_moa = 31.0 * illumination_fraction 
         local_sunset = t_sunset.astimezone(datetime.now().astimezone().tzinfo)
 
+        # 5. Ijtimak
+        t_phase_start = ts.utc(tgl_dt.year, tgl_dt.month, tgl_dt.day - 2)
+        t_phase_end = ts.utc(tgl_dt.year, tgl_dt.month, tgl_dt.day + 1)
+        phases = almanac.moon_phases(eph)
+        t_phases, y_phases = almanac.find_discrete(t_phase_start, t_phase_end, phases)
+
+        ijtimak_str = "Belum terjadi"
+        moon_age_str = "-"
+        for t_p, phase in zip(t_phases, y_phases):
+            if phase == 0: # New Moon
+                if t_p.utc_datetime() < t_sunset.utc_datetime():
+                    age_hours = (t_sunset.utc_datetime() - t_p.utc_datetime()).total_seconds() / 3600
+                    ijtimak_local = t_p.astimezone(datetime.now().astimezone().tzinfo)
+                    ijtimak_str = ijtimak_local.strftime('%H:%M:%S WIB')
+                    moon_age_str = f"{age_hours:.2f} Jam"
+        
+        # 6. Yallop
+        ARCV = alt_m.degrees 
+        W = w_moa
+        q_yallop = (ARCV - (11.8371 - 6.3226 * W + 0.7319 * W**2 - 0.1018 * W**3)) / 10
+        
+        if q_yallop > 0.216: yallop_desc = "Mudah Terlihat"
+        elif q_yallop > -0.06: yallop_desc = "Perlu Alat Optik"
+        else: yallop_desc = "Mustahil Terlihat"
+
         return {
-            'aD': alt_m.degrees,
-            'aL': m.separation_from(s).degrees,
-            'DAz': az_m.degrees - az_s.degrees,
-            'Lag': lag_minutes,
-            'Illuminasi': illumination_fraction * 100,
-            'w': w_moa,
+            'aD': alt_m.degrees, 'aL': m.separation_from(s).degrees, 'DAz': az_m.degrees - az_s.degrees,
+            'Lag': lag_minutes, 'Illuminasi': illumination_fraction * 100, 'w': w_moa,
             'Moon_Alt': alt_m.degrees, 'Moon_Az': az_m.degrees, 'Sun_Az': az_s.degrees,
             'Waktu_Sunset_Lokal': local_sunset.strftime('%H:%M:%S'),
-            'Jam_Sunset_Lokal_Int': local_sunset.hour
+            'Jam_Sunset_Lokal_Int': local_sunset.hour,
+            'Ijtimak': ijtimak_str, 'Umur_Bulan': moon_age_str,
+            'Yallop_q': q_yallop, 'Yallop_Desc': yallop_desc
         }
     except Exception as e: 
         if verbose: print(f"\n❌ Terjadi kesalahan hisab: {e}")
@@ -192,74 +213,45 @@ def get_cuaca(use_api, lat, lon, tgl, jam_sunset_lokal=18):
     return data_def
 
 # ==============================================================================
-# 🧮 MENU 3: GENERATOR DATA HISAB MASSAL (BARU)
+# 🧮 MENU 3: GENERATOR DATA HISAB MASSAL
 # ==============================================================================
 def generate_bulk_hisab():
-    print("\n[ MODUL 3 ] GENERATOR DATA HISAB MASSAL (BIG DATA)")
+    print("\n[ MODUL 3 ] GENERATOR DATA HISAB MASSAL")
     print("-" * 50)
-    print("ℹ️  Modul ini digunakan untuk menghitung parameter astronomi")
-    print("    secara otomatis untuk banyak tanggal sekaligus.")
-    print("    Format CSV Input wajib memiliki kolom: 'Tanggal' (YYYY-MM-DD)")
-    print("    Opsional: 'Latitude', 'Longitude' (Jika kosong pakai default)")
-    print("-" * 50)
-    
     input_file = input("📂 Masukkan nama file CSV input (misal: input.csv): ")
     if not os.path.exists(input_file):
         print("❌ File tidak ditemukan."); pause_return_menu(); return
 
-    try:
-        df = pd.read_csv(input_file, sep=';' if ';' in open(input_file).readline() else ',')
-        print(f"✅ Berhasil memuat {len(df)} baris data.")
-    except Exception as e:
-        print(f"❌ Gagal baca CSV: {e}"); pause_return_menu(); return
+    try: df = pd.read_csv(input_file, sep=';' if ';' in open(input_file).readline() else ',')
+    except Exception as e: print(f"❌ Gagal baca CSV: {e}"); pause_return_menu(); return
 
     if 'Tanggal' not in df.columns:
-        print("❌ Kolom 'Tanggal' tidak ditemukan di CSV."); pause_return_menu(); return
+        print("❌ Kolom 'Tanggal' tidak ditemukan."); pause_return_menu(); return
 
     print("\n🚀 Memulai Perhitungan Hisab Massal...")
     results = []
-    
-    start_time = time.time()
-    
     for i, row in df.iterrows():
         tgl = row['Tanggal']
-        
-        # Cek apakah ada kolom Latitude/Longitude di CSV, jika tidak pakai Default
         lat = float(row['Latitude']) if 'Latitude' in row and pd.notnull(row['Latitude']) else DEF_LAT
         lon = float(row['Longitude']) if 'Longitude' in row and pd.notnull(row['Longitude']) else DEF_LON
-        
-        astro = hitung_astronomi(lat, lon, tgl, verbose=False) # Verbose False biar ga spam console
+        astro = hitung_astronomi(lat, lon, tgl, verbose=False)
         
         if astro:
-            # Format Output sesuai Dataset Training ML
-            data_row = {
-                'Tanggal': tgl,
-                'Latitude': lat,
-                'Longitude': lon,
-                'aD': round(astro['aD'], 4),
-                'aL': round(astro['aL'], 4),
-                'DAz': round(astro['DAz'], 4),
-                'Lag': round(astro['Lag'], 2),
-                'w': round(astro['w'], 4),
-                'Illuminasi': round(astro['Illuminasi'], 2),
-                'Moon_Alt': round(astro['Moon_Alt'], 4),
+            results.append({
+                'Tanggal': tgl, 'Latitude': lat, 'Longitude': lon,
+                'aD': round(astro['aD'], 4), 'aL': round(astro['aL'], 4),
+                'DAz': round(astro['DAz'], 4), 'Lag': round(astro['Lag'], 2),
+                'w': round(astro['w'], 4), 'Illuminasi': round(astro['Illuminasi'], 2),
+                'Moon_Alt': round(astro['Moon_Alt'], 4), 'Yallop_q': round(astro['Yallop_q'], 4),
                 'Waktu_Sunset': astro['Waktu_Sunset_Lokal']
-            }
-            results.append(data_row)
-        
-        # Progress Bar Sederhana
+            })
         if (i+1) % 10 == 0 or (i+1) == len(df):
             print(f"   ⏳ Proses: {i+1}/{len(df)} data selesai...", end="\r")
 
-    # Simpan Hasil
     output_df = pd.DataFrame(results)
     output_filename = f"hasil_hisab_{int(time.time())}.csv"
     output_df.to_csv(output_filename, index=False)
-    
-    duration = time.time() - start_time
-    print(f"\n\n✅ Selesai! Data berhasil disimpan ke: {output_filename}")
-    print(f"⏱️  Waktu proses: {duration:.2f} detik")
-    
+    print(f"\n\n✅ Selesai! Data disimpan ke: {output_filename}")
     pause_return_menu()
 
 # ==============================================================================
@@ -268,70 +260,48 @@ def generate_bulk_hisab():
 def train_model():
     print("\n[ MODUL 1 ] TRAINING & EVALUASI MODEL")
     print("-" * 50)
-    
     if not os.path.exists(FILENAME_CSV):
-        print(f"❌ ERROR KRITIS: File '{FILENAME_CSV}' tidak ditemukan!")
-        pause_return_menu(); return
+        print(f"❌ ERROR: File '{FILENAME_CSV}' tidak ditemukan!"); pause_return_menu(); return
 
-    try: 
-        df = pd.read_csv(FILENAME_CSV, sep=';', encoding='latin1', thousands='.', decimal=',')
-    except Exception as e: 
-        print(f"❌ Gagal membaca CSV: {e}"); pause_return_menu(); return
+    try: df = pd.read_csv(FILENAME_CSV, sep=';', encoding='latin1', thousands='.', decimal=',')
+    except Exception as e: print(f"❌ Gagal membaca CSV: {e}"); pause_return_menu(); return
 
-    # Pembersihan Data
     df.columns = df.columns.str.replace('ï»¿', '').str.strip()
     if 'aD' in df.columns and df['aD'].max() > 100: 
         for c in ['aD', 'aL', 'DAz', 'Lag']: 
             if c in df.columns: df[c] = df[c] / 1000
 
-    if 'Visibility' not in df.columns:
-        print("❌ Kolom 'Visibility' tidak ditemukan."); pause_return_menu(); return
+    if 'Visibility' not in df.columns: print("❌ Kolom 'Visibility' tidak ditemukan."); pause_return_menu(); return
         
     df['Target'] = df['Visibility'].apply(lambda x: 1 if x > 0 else 0)
     features = ['aD', 'aL', 'DAz', 'Lag', 'Suhu_Atmosfer_C', 'Kelembapan_Pct', 'Kondisi_Awan_Pct']
-    
     for f in features:
         if f not in df.columns: df[f] = 0
 
     pipeline = Pipeline([('model', RandomForestClassifier(n_estimators=200, random_state=42))])
-    
-    X = df[features].fillna(0)
-    y = df['Target']
+    X = df[features].fillna(0); y = df['Target']
     pipeline.fit(X, y)
     
     accuracy = pipeline.score(X, y) * 100
-    
-    save_data = {
-        'pipeline': pipeline,
-        'accuracy': accuracy,
-        'train_date': datetime.now().strftime("%Y-%m-%d")
-    }
-
-    joblib.dump(save_data, FILENAME_MODEL)
-    print(f"✅ Model berhasil dilatih!")
-    print(f"📊 Akurasi pada data latih: {accuracy:.2f}%")
-    print(f"💾 Disimpan ke: {FILENAME_MODEL}")
-    
+    joblib.dump({'pipeline': pipeline, 'accuracy': accuracy}, FILENAME_MODEL)
+    print(f"✅ Model dilatih! Akurasi: {accuracy:.2f}%")
     pause_return_menu()
 
 # ==============================================================================
-# 🚀 MENU 2: PREDIKSI & DASHBOARD
+# 🚀 MENU 2: PREDIKSI & DASHBOARD (FIXED LAYOUT & FONT)
 # ==============================================================================
 def predict_future():
     print("\n[ MODUL 2 ] PREDIKSI & VISUALISASI")
     print("-" * 50)
     
     if not os.path.exists(FILENAME_MODEL): 
-        print("❌ Model AI belum dilatih. Jalankan Menu 1 terlebih dahulu."); pause_return_menu(); return
+        print("❌ Model AI belum dilatih. Jalankan Menu 1 dulu."); pause_return_menu(); return
         
     loaded_data = joblib.load(FILENAME_MODEL)
     if isinstance(loaded_data, dict):
-        model = loaded_data['pipeline']
-        model_acc = loaded_data['accuracy']
-    else:
-        model = loaded_data; model_acc = 0.0
+        model = loaded_data['pipeline']; model_acc = loaded_data['accuracy']
+    else: model = loaded_data; model_acc = 0.0
     
-    # Input User
     ganti = input(f"Gunakan Lokasi Default ({DEF_NAME})? (y/n): ").lower()
     if ganti == 'n':
         nama_lokasi = input("Nama Lokasi : ")
@@ -340,24 +310,20 @@ def predict_future():
     else: lat, lon, nama_lokasi = DEF_LAT, DEF_LON, DEF_NAME
 
     tgl_target = input(f"Tanggal (YYYY-MM-DD) [Default {DEF_DATE}]: ") or DEF_DATE
-    
-    # Hijriah
     y_g, m_g, d_g = map(int, tgl_target.split('-'))
     h_today = Gregorian(y_g, m_g, d_g).to_hijri()
     str_hijri = f"{h_today.day} {h_today.month_name()} {h_today.year} H"
 
-    # Proses
     pilih_api = True if input("Mode Cuaca [1] Real-time API  [2] Simulasi Ideal : ") == '1' else False
     astro = hitung_astronomi(lat, lon, tgl_target)
     if not astro: pause_return_menu(); return
     cuaca = get_cuaca(pilih_api, lat, lon, tgl_target, astro['Jam_Sunset_Lokal_Int'])
     
-    # Logika Keputusan
     reject_reason = None
-    if astro['aD'] < 3.0: reject_reason = "Altitude < 3° (MABIMS)"
-    elif astro['aL'] < 6.4: reject_reason = "Elongasi < 6.4° (MABIMS)"
+    if astro['aD'] < 3.0: reject_reason = "Altitude < 3 Deg (MABIMS)"
+    elif astro['aL'] < 6.4: reject_reason = "Elongasi < 6.4 Deg (MABIMS)"
     elif astro['Lag'] < 0: reject_reason = "Moonset sebelum Sunset"
-    elif cuaca['Kondisi_Awan_Pct'] > 90: reject_reason = "Awan Tebal (>90%)"
+    elif cuaca['Kondisi_Awan_Pct'] > 90: reject_reason = "Tertutup Awan Tebal"
     
     input_data = pd.DataFrame([{
         'aD': astro['aD'], 'aL': astro['aL'], 'DAz': astro['DAz'], 'Lag': astro['Lag'],
@@ -369,10 +335,8 @@ def predict_future():
     pred = model.predict(input_data)[0]
     prob_ai = model.predict_proba(input_data)[:, 1][0] * 100
     
-    if reject_reason:
-        status_ai = "TIDAK TERLIHAT"
-    else:
-        status_ai = "TERLIHAT" if pred == 1 else "TIDAK TERLIHAT"
+    if reject_reason: status_ai = "TIDAK TERLIHAT"
+    else: status_ai = "TERLIHAT" if pred == 1 else "TIDAK TERLIHAT"
 
     if status_ai == "TERLIHAT":
         next_masehi = (datetime.strptime(tgl_target, "%Y-%m-%d") + timedelta(days=1)).strftime("%d %B %Y")
@@ -381,42 +345,41 @@ def predict_future():
         next_masehi = (datetime.strptime(tgl_target, "%Y-%m-%d") + timedelta(days=2)).strftime("%d %B %Y")
         ket_awal_bulan = f"1 {Gregorian(y_g, m_g, d_g + 2).to_hijri().month_name()} (Istikmal)"
 
-    # --- DASHBOARD VISUALISASI ---
-    fig = plt.figure(figsize=(13, 7), facecolor='#f4f4f4')
+    # --- DASHBOARD VISUALISASI (FIXED LAYOUT & FONT) ---
+    # Ukuran fix 13x7 inci, cukup besar tapi tidak perlu dimaksimalkan paksa
+    fig = plt.figure(figsize=(13, 7), facecolor='#f8f9fa')
     gs = fig.add_gridspec(1, 2, width_ratios=[1.8, 1.2]) 
     
-    # GRAFIK
+    # 1. GRAFIK LANGIT
     ax_plot = fig.add_subplot(gs[0])
-    ax_plot.set_facecolor('#0b0b1a') 
-    
-    ax_plot.axhline(0, color='#00ff00', lw=2, alpha=0.8) 
-    ax_plot.axhspan(-5, 0, color='#2b1d14', alpha=1.0)  
-    ax_plot.axhline(3.0, color='red', linestyle='--', linewidth=1, label='Limit Alt 3°')
-    limit_circle = Circle((astro['Sun_Az'], -0.83), 6.4, color='yellow', fill=False, linestyle='--', label='Limit Elongasi 6.4°')
+    ax_plot.set_facecolor('#0f172a')
+    ax_plot.axhline(0, color='#22c55e', lw=2, alpha=0.8)
+    ax_plot.axhspan(-5, 0, color='#3f2e18', alpha=1.0)
+    ax_plot.axhline(3.0, color='red', linestyle='--', linewidth=1.5, label='Limit Alt 3 Deg')
+    limit_circle = Circle((astro['Sun_Az'], -0.83), 6.4, color='yellow', fill=False, linestyle='--', label='Limit Elongasi 6.4 Deg')
     ax_plot.add_patch(limit_circle)
     
-    ax_plot.scatter(astro['Sun_Az'], -0.83, s=600, c='orange', edgecolors='red', label='Matahari', zorder=5)
-    col_moon = 'gold' if status_ai == "TERLIHAT" else '#555555'
-    ax_plot.scatter(astro['Moon_Az'], astro['Moon_Alt'], s=350, c=col_moon, edgecolors='white', label='Bulan', zorder=10)
-    ax_plot.text(astro['Moon_Az'], astro['Moon_Alt'] + 0.7, f"Alt: {astro['aD']:.2f}°", color='cyan', ha='center', fontsize=9, fontweight='bold')
+    ax_plot.scatter(astro['Sun_Az'], -0.83, s=800, c='#f59e0b', edgecolors='#ef4444', label='Matahari', zorder=5)
+    col_moon = '#eab308' if status_ai == "TERLIHAT" else '#64748b'
+    ax_plot.scatter(astro['Moon_Az'], astro['Moon_Alt'], s=450, c=col_moon, edgecolors='white', label='Bulan', zorder=10)
+    ax_plot.text(astro['Moon_Az'], astro['Moon_Alt'] + 0.8, f"Alt: {astro['aD']:.2f} Deg", color='#22d3ee', ha='center', fontsize=10, fontweight='bold')
 
-    ax_plot.set_title(f"VISUALISASI POSISI HILAL\n{nama_lokasi}", color='black', fontsize=12, fontweight='bold', pad=15)
-    ax_plot.set_xlabel("Azimuth (Arah)"); ax_plot.set_ylabel("Altitude (Tinggi)")
-    ax_plot.legend(loc='upper right', fontsize=8, facecolor='white', framealpha=0.9)
+    ax_plot.set_title(f"VISUALISASI POSISI HILAL\n{nama_lokasi}", color='black', fontsize=13, fontweight='bold', pad=15)
+    ax_plot.set_xlabel("Azimuth", fontsize=10); ax_plot.set_ylabel("Altitude", fontsize=10)
+    ax_plot.legend(loc='upper right', fontsize=9, facecolor='white', framealpha=0.9)
     ax_plot.grid(True, linestyle=':', alpha=0.3, color='white')
     ax_plot.set_aspect('equal', adjustable='box') 
-    
     mid_az = (astro['Sun_Az'] + astro['Moon_Az']) / 2
-    ax_plot.set_xlim(mid_az - 8, mid_az + 8)
-    ax_plot.set_ylim(-3, max(astro['Moon_Alt'] + 5, 8))
+    ax_plot.set_xlim(mid_az - 9, mid_az + 9)
+    ax_plot.set_ylim(-3, max(astro['Moon_Alt'] + 6, 9))
 
-    # TEKS INFO
+    # 2. PANEL INFO (ASCII ONLY - NO TOFU)
     ax_text = fig.add_subplot(gs[1])
     ax_text.axis('off')
     
-    bg_status = '#28a745' if status_ai == "TERLIHAT" else '#dc3545'
+    bg_status = '#16a34a' if status_ai == "TERLIHAT" else '#dc2626'
     bar_fill = int(prob_ai/5)
-    bar_conf = "|" + "█" * bar_fill + "░" * (20 - bar_fill) + "|"
+    bar_conf = "|" + "#" * bar_fill + "." * (20 - bar_fill) + "|"
     
     info_text = f"""
     :: LAPORAN RUKYATUL HILAL AI ::
@@ -425,18 +388,21 @@ def predict_future():
     Masehi      : {tgl_target}
     Hijriah     : {str_hijri}
     Sunset      : {astro['Waktu_Sunset_Lokal']}
+    Ijtimak     : {astro['Ijtimak']}
     
-    [ DATA HISAB ]
-    Altitude    : {astro['aD']:.4f}°
-    Elongasi    : {astro['aL']:.4f}°
+    [ DATA HISAB & FISIK ]
+    Altitude    : {astro['aD']:.4f} Deg
+    Elongasi    : {astro['aL']:.4f} Deg
     Lebar (w)   : {astro['w']:.4f} moa
     Lag         : {astro['Lag']:.2f} menit
-    Illuminasi  : {astro['Illuminasi']:.2f}%
+    Umur Bulan  : {astro['Umur_Bulan']}
+    Yallop q    : {astro['Yallop_q']:.3f}
+    Ket. Yallop : {astro['Yallop_Desc']}
     
     [ KONDISI CUACA ]
     Langit      : {cuaca['Deskripsi']}
     Awan        : {cuaca['Kondisi_Awan_Pct']}%
-    Suhu        : {cuaca['Suhu_Atmosfer_C']}°C
+    Suhu        : {cuaca['Suhu_Atmosfer_C']} C
 
     [ KEPUTUSAN AI ]
     Akurasi Model: {model_acc:.2f}%
@@ -447,22 +413,29 @@ def predict_future():
     {ket_awal_bulan}
     Mulai: {next_masehi}
     """
-    
+    # Menggunakan font monospace agar rapi
     ax_text.text(0.05, 0.98, info_text, transform=ax_text.transAxes, fontsize=10, 
-                 verticalalignment='top', family='monospace', color='#333333')
+                 verticalalignment='top', family='monospace', color='#1e293b')
 
+    # Tombol Status (Posisi Y diturunkan agar tidak tabrakan)
     rect_status = dict(boxstyle="round,pad=0.7", fc=bg_status, ec="black")
-    ax_text.text(0.5, 0.12, status_ai, transform=ax_text.transAxes, fontsize=14, 
+    ax_text.text(0.5, 0.10, status_ai, transform=ax_text.transAxes, fontsize=15, 
                  color='white', fontweight='bold', ha='center', va='center', bbox=rect_status)
     
+    # Alasan Penolakan (Posisi di bawah tombol)
     if reject_reason:
-        ax_text.text(0.5, 0.05, f"(! {reject_reason} !)", transform=ax_text.transAxes, 
-                     fontsize=9, color='red', ha='center', fontweight='bold')
-
-    plt.tight_layout()
-    tampilkan_plot_universal(fig)
+        ax_text.text(0.5, 0.03, f"(! {reject_reason} !)", transform=ax_text.transAxes, 
+                     fontsize=10, color='#dc2626', ha='center', fontweight='bold')
     
-    # NAVIGASI FIX
+    print("\n" + "="*30)
+    simpan = input("📸 Simpan laporan ke Gambar? (y/n): ")
+    if simpan.lower() == 'y':
+        nama_file = f"Laporan_{tgl_target}_{nama_lokasi.replace(' ', '_')}.png"
+        # DPI tinggi agar gambar tajam saat disimpan
+        fig.savefig(nama_file, dpi=200, bbox_inches='tight')
+        print(f"✅ Gambar berhasil disimpan sebagai: {nama_file}")
+
+    tampilkan_plot_universal(fig)
     pause_return_menu()
 
 # ==============================================================================
