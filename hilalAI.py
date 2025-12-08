@@ -295,7 +295,7 @@ def predict_future():
 # ==============================================================================
 if __name__ == "__main__":
     while True:
-        print("\n=== 🌙 SISTEM HILAL AI (VERSI FINAL) ===")
+        print("\n=== 🌙 SISTEM HILAL AI ===")
         print("1. Latih Model AI (Training)")
         print("2. Prediksi Hilal & Visualisasi")
         print("3. Keluar")
@@ -306,4 +306,5 @@ if __name__ == "__main__":
         elif p == '3': 
             print("👋 Wassalamualaikum."); break
         else: print("❌ Pilihan tidak valid.")
+
 
