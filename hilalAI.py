@@ -60,38 +60,35 @@ def clear_screen():
 
 def print_header():
     clear_screen()
-    print("="*70)
-    print("🌙  SISTEM PREDIKSI HILAL & GENERATOR DATA HISAB AI")
-    print("="*70)
+    print("="*75)
+    print("🌙  SISTEM PREDIKSI HILAL & GENERATOR DATA HISAB AI (Final Ver.)")
+    print("="*75)
     print(f"👨‍💻  Created by : Ahmad Tegar Hidayat")
     print(f"🎓  Afiliasi   : Ilmu Falak - UIN Walisongo Semarang")
     print(f"📧  Kontak     : ahmadtegar0809@gmail.com")
-    print("-" * 70)
+    print("-" * 75)
     print("\n")
-
-def tampilkan_plot_universal(figure):
-    """Menampilkan plot dengan ukuran fix yang rapi."""
-    is_notebook = False
-    try:
-        from IPython import get_ipython
-        if get_ipython() is not None: is_notebook = True
-    except ImportError: is_notebook = False
-
-    if is_notebook:
-        from IPython.display import display, clear_output
-        clear_output(wait=True); display(figure)
-    else:
-        print("📊 Dashboard Visualisasi Telah Terbuka...")
-        # Menggunakan tight_layout untuk otomatis merapikan margin
-        plt.tight_layout()
-        plt.show()
 
 def pause_return_menu():
     print("\n" + "-"*50)
     input("👉 Tekan [ENTER] untuk kembali ke Menu Utama...")
 
+def maximize_window():
+    """Memaksimalkan jendela plot secara otomatis"""
+    try:
+        manager = plt.get_current_fig_manager()
+        if os.name == 'nt': manager.window.state('zoomed')
+        else: manager.window.showMaximized()
+    except: pass
+
+def tampilkan_plot_universal(figure):
+    maximize_window()
+    print("📊 Dashboard Visualisasi Terbuka (Cek Jendela Baru)...")
+    plt.tight_layout()
+    plt.show()
+
 # ==============================================================================
-# 🔭 ENGINE ASTRONOMI (SKYFIELD + YALLOP + IJTIMAK)
+# 🔭 ENGINE ASTRONOMI (NO YALLOP)
 # ==============================================================================
 def hitung_astronomi(lat, lon, tgl_str, verbose=True):
     if verbose: print("🔭 Menghitung data hisab ephemeris...", end="\r")
@@ -137,7 +134,7 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
             times_m, _ = almanac.find_discrete(t_search_start, t_sunset, f_geo_moon)
             t_moonset = times_m[-1] if len(times_m) > 0 else None
 
-        # 4. Lag & Parameter Lain
+        # 4. Lag & Parameter
         if t_moonset is not None:
             lag_minutes = (t_moonset.utc_datetime() - t_sunset.utc_datetime()).total_seconds() / 60
         else:
@@ -147,7 +144,7 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
         w_moa = 31.0 * illumination_fraction 
         local_sunset = t_sunset.astimezone(datetime.now().astimezone().tzinfo)
 
-        # 5. Ijtimak
+        # 5. Fitur Ijtimak (New Moon)
         t_phase_start = ts.utc(tgl_dt.year, tgl_dt.month, tgl_dt.day - 2)
         t_phase_end = ts.utc(tgl_dt.year, tgl_dt.month, tgl_dt.day + 1)
         phases = almanac.moon_phases(eph)
@@ -162,15 +159,6 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
                     ijtimak_local = t_p.astimezone(datetime.now().astimezone().tzinfo)
                     ijtimak_str = ijtimak_local.strftime('%H:%M:%S WIB')
                     moon_age_str = f"{age_hours:.2f} Jam"
-        
-        # 6. Yallop
-        ARCV = alt_m.degrees 
-        W = w_moa
-        q_yallop = (ARCV - (11.8371 - 6.3226 * W + 0.7319 * W**2 - 0.1018 * W**3)) / 10
-        
-        if q_yallop > 0.216: yallop_desc = "Mudah Terlihat"
-        elif q_yallop > -0.06: yallop_desc = "Perlu Alat Optik"
-        else: yallop_desc = "Mustahil Terlihat"
 
         return {
             'aD': alt_m.degrees, 'aL': m.separation_from(s).degrees, 'DAz': az_m.degrees - az_s.degrees,
@@ -178,8 +166,7 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
             'Moon_Alt': alt_m.degrees, 'Moon_Az': az_m.degrees, 'Sun_Az': az_s.degrees,
             'Waktu_Sunset_Lokal': local_sunset.strftime('%H:%M:%S'),
             'Jam_Sunset_Lokal_Int': local_sunset.hour,
-            'Ijtimak': ijtimak_str, 'Umur_Bulan': moon_age_str,
-            'Yallop_q': q_yallop, 'Yallop_Desc': yallop_desc
+            'Ijtimak': ijtimak_str, 'Umur_Bulan': moon_age_str
         }
     except Exception as e: 
         if verbose: print(f"\n❌ Terjadi kesalahan hisab: {e}")
@@ -242,7 +229,7 @@ def generate_bulk_hisab():
                 'aD': round(astro['aD'], 4), 'aL': round(astro['aL'], 4),
                 'DAz': round(astro['DAz'], 4), 'Lag': round(astro['Lag'], 2),
                 'w': round(astro['w'], 4), 'Illuminasi': round(astro['Illuminasi'], 2),
-                'Moon_Alt': round(astro['Moon_Alt'], 4), 'Yallop_q': round(astro['Yallop_q'], 4),
+                'Moon_Alt': round(astro['Moon_Alt'], 4),
                 'Waktu_Sunset': astro['Waktu_Sunset_Lokal']
             })
         if (i+1) % 10 == 0 or (i+1) == len(df):
@@ -288,7 +275,7 @@ def train_model():
     pause_return_menu()
 
 # ==============================================================================
-# 🚀 MENU 2: PREDIKSI & DASHBOARD (FIXED LAYOUT & FONT)
+# 🚀 MENU 2: PREDIKSI & DASHBOARD
 # ==============================================================================
 def predict_future():
     print("\n[ MODUL 2 ] PREDIKSI & VISUALISASI")
@@ -320,7 +307,7 @@ def predict_future():
     cuaca = get_cuaca(pilih_api, lat, lon, tgl_target, astro['Jam_Sunset_Lokal_Int'])
     
     reject_reason = None
-    if astro['aD'] < 3.0: reject_reason = "Altitude < 3 Deg "
+    if astro['aD'] < 3.0: reject_reason = "Altitude < 3 Deg (MABIMS)"
     elif astro['aL'] < 6.4: reject_reason = "Elongasi < 6.4 Deg (MABIMS)"
     elif astro['Lag'] < 0: reject_reason = "Moonset sebelum Sunset"
     elif cuaca['Kondisi_Awan_Pct'] > 90: reject_reason = "Tertutup Awan Tebal"
@@ -346,7 +333,6 @@ def predict_future():
         ket_awal_bulan = f"1 {Gregorian(y_g, m_g, d_g + 2).to_hijri().month_name()} (Istikmal)"
 
     # --- DASHBOARD VISUALISASI (FIXED LAYOUT & FONT) ---
-    # Ukuran fix 13x7 inci, cukup besar tapi tidak perlu dimaksimalkan paksa
     fig = plt.figure(figsize=(13, 7), facecolor='#f8f9fa')
     gs = fig.add_gridspec(1, 2, width_ratios=[1.8, 1.2]) 
     
@@ -373,7 +359,7 @@ def predict_future():
     ax_plot.set_xlim(mid_az - 9, mid_az + 9)
     ax_plot.set_ylim(-3, max(astro['Moon_Alt'] + 6, 9))
 
-    # 2. PANEL INFO (ASCII ONLY - NO TOFU)
+    # 2. PANEL INFO (YALLOP REMOVED)
     ax_text = fig.add_subplot(gs[1])
     ax_text.axis('off')
     
@@ -411,30 +397,34 @@ def predict_future():
     {ket_awal_bulan}
     Mulai: {next_masehi}
     """
-    # Menggunakan font monospace agar rapi
     ax_text.text(0.05, 0.98, info_text, transform=ax_text.transAxes, fontsize=10, 
                  verticalalignment='top', family='monospace', color='#1e293b')
 
-    # Tombol Status (Posisi Y diturunkan agar tidak tabrakan)
+    # Tombol Status
     rect_status = dict(boxstyle="round,pad=0.7", fc=bg_status, ec="black")
-    ax_text.text(0.2, 0.02, status_ai, transform=ax_text.transAxes, fontsize=15, 
+    ax_text.text(0.5, 0.15, status_ai, transform=ax_text.transAxes, fontsize=16, 
                  color='white', fontweight='bold', ha='center', va='center', bbox=rect_status)
     
-    # Alasan Penolakan (Posisi di bawah tombol)
+    # Alasan Penolakan (CENTERED & LOWERED)
     if reject_reason:
-        ax_text.text(0.2, 0.02, f"(! {reject_reason} !)", transform=ax_text.transAxes, 
+        ax_text.text(0.5, 0.02, f"(! {reject_reason} !)", transform=ax_text.transAxes, 
                      fontsize=10, color='#dc2626', ha='center', fontweight='bold')
     
     print("\n" + "="*30)
     simpan = input("📸 Simpan laporan ke Gambar? (y/n): ")
     if simpan.lower() == 'y':
         nama_file = f"Laporan_{tgl_target}_{nama_lokasi.replace(' ', '_')}.png"
-        # DPI tinggi agar gambar tajam saat disimpan
         fig.savefig(nama_file, dpi=200, bbox_inches='tight')
         print(f"✅ Gambar berhasil disimpan sebagai: {nama_file}")
 
+    print("\n📊 Sedang menampilkan grafik...")
+    print("ℹ️  TIPS: Tutup jendela grafik untuk kembali ke menu.")
     tampilkan_plot_universal(fig)
-    pause_return_menu()
+    
+    # NAVIGASI KEMBALI
+    print("\n" + "-"*50)
+    print("✅ Sesi Prediksi Selesai.")
+    input("👉 Tekan [ENTER] untuk kembali ke Menu Utama...")
 
 # ==============================================================================
 # MAIN LOOP PROGRAM
@@ -460,5 +450,3 @@ if __name__ == "__main__":
                 input("⚠️ Pilihan tidak valid. Tekan Enter...")
         except KeyboardInterrupt:
             print("\nKeluar paksa..."); break
-
-
