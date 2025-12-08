@@ -1,3 +1,4 @@
+%matplotlib inline
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -306,5 +307,6 @@ if __name__ == "__main__":
         elif p == '3': 
             print("👋 Wassalamualaikum."); break
         else: print("❌ Pilihan tidak valid.")
+
 
 
