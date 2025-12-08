@@ -5,7 +5,6 @@
 👨‍💻 CREATOR  : Ahmad Tegar Hidayat
 🎓 STATUS   : Mahasiswa Ilmu Falak UIN Walisongo Semarang
 📧 EMAIL    : ahmadtegar0809@gmail.com
-🏢 INSTANSI : Observatorium UIN Walisongo
 ================================================================================
 """
 
@@ -173,10 +172,19 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
         return None
 
 # ==============================================================================
-# ☁️ ENGINE CUACA
+# ☁️ ENGINE CUACA (LENGKAP)
 # ==============================================================================
 def get_cuaca(use_api, lat, lon, tgl, jam_sunset_lokal=18):
-    data_def = {'Suhu_Atmosfer_C': 28.0, 'Kelembapan_Pct': 75.0, 'Kondisi_Awan_Pct': 10.0, 'Deskripsi': 'Simulasi Ideal', 'Sumber': 'Simulasi'}
+    # Default jika offline
+    data = {
+        'Suhu_Atmosfer_C': 28.0, 
+        'Kelembapan_Pct': 75.0, 
+        'Kondisi_Awan_Pct': 10.0, 
+        'Kecepatan_Angin_ms': 2.5,
+        'Transparansi_Index': 0.90,
+        'Deskripsi': 'Simulasi Ideal', 
+        'Sumber': 'Simulasi'
+    }
     
     if use_api:
         print("☁️ Mengambil data cuaca real-time (API)...")
@@ -184,20 +192,33 @@ def get_cuaca(use_api, lat, lon, tgl, jam_sunset_lokal=18):
             url = "https://api.open-meteo.com/v1/forecast"
             params = {
                 "latitude": lat, "longitude": lon, 
-                "hourly": "temperature_2m,relative_humidity_2m,cloud_cover,weathercode", 
+                "hourly": "temperature_2m,relative_humidity_2m,cloud_cover,weathercode,wind_speed_10m", 
                 "start_date": tgl, "end_date": tgl, "timezone": "auto"
             }
             r = requests.get(url, params=params, timeout=5).json()
             idx = min(jam_sunset_lokal, 23)
+            
+            # Konversi & Ekstraksi
+            wind_kmh = r['hourly']['wind_speed_10m'][idx]
+            wind_ms = wind_kmh / 3.6 # Konversi km/h ke m/s
+            awan_pct = r['hourly']['cloud_cover'][idx]
+            
+            # Hitung Transparansi (Semakin sedikit awan, semakin tinggi index)
+            transparansi = 1.0 - (awan_pct / 100.0)
+            
             return {
                 'Suhu_Atmosfer_C': r['hourly']['temperature_2m'][idx],
                 'Kelembapan_Pct': r['hourly']['relative_humidity_2m'][idx],
-                'Kondisi_Awan_Pct': r['hourly']['cloud_cover'][idx],
+                'Kondisi_Awan_Pct': awan_pct,
+                'Kecepatan_Angin_ms': round(wind_ms, 2),
+                'Transparansi_Index': round(transparansi, 2),
                 'Deskripsi': f"WMO Code {r['hourly']['weathercode'][idx]}",
                 'Sumber': 'API Open-Meteo'
             }
-        except: print("⚠️ Gagal terhubung API. Menggunakan mode Simulasi Ideal.")
-    return data_def
+        except Exception as e: 
+            print(f"⚠️ Gagal terhubung API ({e}). Menggunakan mode Simulasi Ideal.")
+            
+    return data
 
 # ==============================================================================
 # 🧮 MENU 3: GENERATOR DATA HISAB MASSAL
@@ -217,21 +238,36 @@ def generate_bulk_hisab():
 
     print("\n🚀 Memulai Perhitungan Hisab Massal...")
     results = []
+    
+    # Mode API untuk Generator (Default False agar cepat, bisa diubah True jika butuh cuaca real)
+    pilih_api = False 
+    
     for i, row in df.iterrows():
         tgl = row['Tanggal']
         lat = float(row['Latitude']) if 'Latitude' in row and pd.notnull(row['Latitude']) else DEF_LAT
         lon = float(row['Longitude']) if 'Longitude' in row and pd.notnull(row['Longitude']) else DEF_LON
+        
         astro = hitung_astronomi(lat, lon, tgl, verbose=False)
         
         if astro:
+            # Ambil cuaca (Simulasi/API) untuk kelengkapan data
+            cuaca = get_cuaca(pilih_api, lat, lon, tgl, astro['Jam_Sunset_Lokal_Int'])
+            
             results.append({
                 'Tanggal': tgl, 'Latitude': lat, 'Longitude': lon,
                 'aD': round(astro['aD'], 4), 'aL': round(astro['aL'], 4),
                 'DAz': round(astro['DAz'], 4), 'Lag': round(astro['Lag'], 2),
                 'w': round(astro['w'], 4), 'Illuminasi': round(astro['Illuminasi'], 2),
                 'Moon_Alt': round(astro['Moon_Alt'], 4),
+                # Data Cuaca Lengkap
+                'Suhu_Atmosfer_C': cuaca['Suhu_Atmosfer_C'],
+                'Kelembapan_Pct': cuaca['Kelembapan_Pct'],
+                'Kecepatan_Angin_ms': cuaca['Kecepatan_Angin_ms'],
+                'Kondisi_Awan_Pct': cuaca['Kondisi_Awan_Pct'],
+                'Transparansi_Index': cuaca['Transparansi_Index'],
                 'Waktu_Sunset': astro['Waktu_Sunset_Lokal']
             })
+            
         if (i+1) % 10 == 0 or (i+1) == len(df):
             print(f"   ⏳ Proses: {i+1}/{len(df)} data selesai...", end="\r")
 
@@ -307,10 +343,10 @@ def predict_future():
     cuaca = get_cuaca(pilih_api, lat, lon, tgl_target, astro['Jam_Sunset_Lokal_Int'])
     
     reject_reason = None
-    if astro['aD'] < 3.0: reject_reason = "Altitude < 3 Deg (MABIMS)"
-    elif astro['aL'] < 6.4: reject_reason = "Elongasi < 6.4 Deg (MABIMS)"
-    elif astro['Lag'] < 0: reject_reason = "Moonset sebelum Sunset"
-    elif cuaca['Kondisi_Awan_Pct'] > 90: reject_reason = "Tertutup Awan Tebal"
+    if astro['aD'] < 3.0: reject_reason = "Tinggi Hilal di bawah 3 derajat (Kriteria MABIMS)"
+    elif astro['aL'] < 6.4: reject_reason = "Elongasi di bawah 6.4 derajat (Kriteria MABIMS)"
+    elif astro['Lag'] < 0: reject_reason = "Bulan terbenam sebelum Matahari (Qobla Ghurub)"
+    elif cuaca['Kondisi_Awan_Pct'] > 90: reject_reason = "Langit Tertutup Awan Tebal"
     
     input_data = pd.DataFrame([{
         'aD': astro['aD'], 'aL': astro['aL'], 'DAz': astro['DAz'], 'Lag': astro['Lag'],
@@ -332,7 +368,7 @@ def predict_future():
         next_masehi = (datetime.strptime(tgl_target, "%Y-%m-%d") + timedelta(days=2)).strftime("%d %B %Y")
         ket_awal_bulan = f"1 {Gregorian(y_g, m_g, d_g + 2).to_hijri().month_name()} (Istikmal)"
 
-    # --- DASHBOARD VISUALISASI (FIXED LAYOUT & FONT) ---
+    # --- DASHBOARD VISUALISASI ---
     fig = plt.figure(figsize=(13, 7), facecolor='#f8f9fa')
     gs = fig.add_gridspec(1, 2, width_ratios=[1.8, 1.2]) 
     
@@ -359,7 +395,7 @@ def predict_future():
     ax_plot.set_xlim(mid_az - 9, mid_az + 9)
     ax_plot.set_ylim(-3, max(astro['Moon_Alt'] + 6, 9))
 
-    # 2. PANEL INFO (YALLOP REMOVED)
+    # 2. PANEL INFO (LENGKAP)
     ax_text = fig.add_subplot(gs[1])
     ax_text.axis('off')
     
@@ -387,6 +423,9 @@ def predict_future():
     Langit      : {cuaca['Deskripsi']}
     Awan        : {cuaca['Kondisi_Awan_Pct']}%
     Suhu        : {cuaca['Suhu_Atmosfer_C']} C
+    Kelembapan  : {cuaca['Kelembapan_Pct']}%
+    Angin       : {cuaca['Kecepatan_Angin_ms']} m/s
+    Transparansi: {cuaca['Transparansi_Index']}
 
     [ KEPUTUSAN AI ]
     Akurasi Model: {model_acc:.2f}%
@@ -421,7 +460,6 @@ def predict_future():
     print("ℹ️  TIPS: Tutup jendela grafik untuk kembali ke menu.")
     tampilkan_plot_universal(fig)
     
-    # NAVIGASI KEMBALI
     print("\n" + "-"*50)
     print("✅ Sesi Prediksi Selesai.")
     input("👉 Tekan [ENTER] untuk kembali ke Menu Utama...")
