@@ -1,0 +1,7 @@
+pandas
+numpy
+matplotlib
+joblib
+requests
+skyfield
+scikit-learn
