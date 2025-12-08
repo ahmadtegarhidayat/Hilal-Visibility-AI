@@ -320,7 +320,7 @@ def predict_future():
     cuaca = get_cuaca(pilih_api, lat, lon, tgl_target, astro['Jam_Sunset_Lokal_Int'])
     
     reject_reason = None
-    if astro['aD'] < 3.0: reject_reason = "Altitude < 3 Deg (MABIMS)"
+    if astro['aD'] < 3.0: reject_reason = "Altitude < 3 Deg "
     elif astro['aL'] < 6.4: reject_reason = "Elongasi < 6.4 Deg (MABIMS)"
     elif astro['Lag'] < 0: reject_reason = "Moonset sebelum Sunset"
     elif cuaca['Kondisi_Awan_Pct'] > 90: reject_reason = "Tertutup Awan Tebal"
@@ -419,12 +419,12 @@ def predict_future():
 
     # Tombol Status (Posisi Y diturunkan agar tidak tabrakan)
     rect_status = dict(boxstyle="round,pad=0.7", fc=bg_status, ec="black")
-    ax_text.text(0.5, 0.10, status_ai, transform=ax_text.transAxes, fontsize=15, 
+    ax_text.text(0.5, 0.01, status_ai, transform=ax_text.transAxes, fontsize=15, 
                  color='white', fontweight='bold', ha='center', va='center', bbox=rect_status)
     
     # Alasan Penolakan (Posisi di bawah tombol)
     if reject_reason:
-        ax_text.text(0.5, 0.03, f"(! {reject_reason} !)", transform=ax_text.transAxes, 
+        ax_text.text(0.5, 0.01, f"(! {reject_reason} !)", transform=ax_text.transAxes, 
                      fontsize=10, color='#dc2626', ha='center', fontweight='bold')
     
     print("\n" + "="*30)
@@ -462,3 +462,4 @@ if __name__ == "__main__":
                 input("⚠️ Pilihan tidak valid. Tekan Enter...")
         except KeyboardInterrupt:
             print("\nKeluar paksa..."); break
+
