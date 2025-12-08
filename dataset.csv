@@ -1,4 +1,4 @@
-aD,aL,DAz,Lag,w,Illuminasi,Suhu_Atmosfer_C,Kelembapan_Pct,Kecepatan_Angin_ms,Kondisi_Awan_Pct,Transparansi_Index,Target
+aD,aL,DAz,Lag,w,Illuminasi,Suhu_Atmosfer_C,Kelembapan_Pct,Kecepatan_Angin_ms,Kondisi_Awan_Pct,Transparansi_Index,Visibility
 7.667,8.883,3.043,31.535,0.1774,0.602,29.52,68.20842395,0.4,54.39312528,0.53,1
 4.599,5.424,0.661,18.354,0.0733,0.225,29.56,72.81088478,2.52,36.31541334,0.6,1
 4.803,5.616,0.579,19.197,0.0787,0.241,27.79,67.22750173,2.87,51.96695148,0.54,1
@@ -775,3 +775,4 @@ aD,aL,DAz,Lag,w,Illuminasi,Suhu_Atmosfer_C,Kelembapan_Pct,Kecepatan_Angin_ms,Kon
 5.36,7.03,3.47,21.67,0.09,0.3,38.30905277,55.59762666,2.41,24.24322841,0.74,0
 5.31,6.99,3.49,21.44,0.09,0.3,32.25,74.40809319,1.45,42.48389121,0.69,0
 5.35,7.01,3.45,21.62,0.09,0.3,34.4859022,61.09119253,2.34,7.319077749,0.74,1
+
