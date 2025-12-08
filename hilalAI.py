@@ -1,6 +1,3 @@
-# Tambahkan ini di sel terpisah sebelum menjalankan kode utama
-# %matplotlib inline 
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +9,14 @@ import warnings
 from datetime import datetime
 from skyfield.api import load, wgs84
 from skyfield import almanac
-from IPython.display import display, clear_output # <--- FIX DISPLAY
+
+# Coba import display hanya jika berada di lingkungan interaktif (Colab/Jupyter)
+try:
+    from IPython.display import display, clear_output
+except ImportError:
+    # Jika gagal (berarti di CMD), set variabel ke fungsi dummy
+    def display(*args, **kwargs): pass
+    def clear_output(*args, **kwargs): pass
 
 # Machine Learning Libs
 from sklearn.model_selection import train_test_split
@@ -24,19 +28,39 @@ from sklearn.metrics import confusion_matrix
 warnings.filterwarnings('ignore')
 
 # ==============================================================================
-# ⚙️ KONFIGURASI SISTEM (FIX PERMANEN: Standardisasi Nama File)
+# 🌍 FUNGSI UNIVERSAL VISUALISASI
 # ==============================================================================
-FILENAME_CSV   = 'dataset.csv'
-FILENAME_MODEL = 'model_klasifikasi_terbaik.joblib' # FIX Syntax/Capitalization
+def tampilkan_plot_universal(figure, is_interactive_mode=False):
+    """Menampilkan plot, baik di Colab/Jupyter atau di CMD."""
+    
+    # Cek apakah sedang berada di lingkungan Jupyter/Colab (IPython)
+    if 'display' in globals():
+        # LINGKUNGAN NOTEBOOK/COLAB DITEMUKAN
+        if is_interactive_mode:
+             # Bersihkan output buffer dari menu sebelumnya
+            clear_output(wait=True) 
+        
+        # Paksa render objek figure
+        display(figure) 
+        # Tutup objek Matplotlib untuk membebaskan memori
+        plt.close(figure)
+        
+    else:
+        # LINGKUNGAN CMD/TERMINAL DITEMUKAN
+        plt.show() # Akan membuka jendela GUI terpisah
 
-# Default Location: Observatorium UIN Walisongo Semarang
+# ==============================================================================
+# ⚙️ KONFIGURASI SISTEM (FIX PERMANEN)
+# ==============================================================================
+FILENAME_CSV    = 'dataset.csv'
+FILENAME_MODEL  = 'model_klasifikasi_terbaik.joblib' 
 DEF_NAME = "Observatorium UIN Walisongo"
 DEF_LAT  = -6.995347
 DEF_LON  = 110.347949
 DEF_DATE = "2026-06-16"
 
 # ==============================================================================
-# 🧠 MODUL 1: TRAINING ENGINE (LOGISTIC REGRESSION) - FIX ROBUSTNESS DATA
+# 🧠 MODUL 1: TRAINING ENGINE (FIX ROBUSTNESS DATA)
 # ==============================================================================
 def train_model():
     print("\n[ SISTEM ] MEMULAI TRAINING MODEL BARU...")
@@ -53,12 +77,11 @@ def train_model():
     except Exception as e:
         print(f"❌ Gagal baca CSV: {e}"); return
 
-    # 1. Standarisasi Nama Kolom (Pembersihan Data) - FIX PERMANEN
-    df.columns = df.columns.str.strip() # Menghilangkan spasi
-    
+    # 1. Standarisasi Nama Kolom
+    df.columns = df.columns.str.strip() 
     rename_map = {
         'lluminasi (%)': 'Illuminasi', 'Illuminasi (%)': 'Illuminasi',
-        'visibility': 'Visibility', 'VISIBILITY': 'Visibility', # FIX Case Sensitivity
+        'visibility': 'Visibility', 'VISIBILITY': 'Visibility',
         'Suhu_Atmosfer_C': 'Suhu_Atmosfer_C', 'Kelembapan_Pct': 'Kelembapan_Pct',
         'Kecepatan_Angin_ms': 'Kecepatan_Angin_ms', 'Kondisi_Awan_Pct': 'Kondisi_Awan_Pct',
         'Transparansi_Index': 'Transparansi_Index'
@@ -72,7 +95,7 @@ def train_model():
         
     df['Target'] = df[col_target].apply(lambda x: 1 if str(x).strip() in ['1', '1.0', 'Terlihat', 'Visible'] else 0)
 
-    # 3. Filter Fitur (Hanya Ambil Data Teknis)
+    # 3. Filter Fitur
     blacklist = ['No', 'ï»¿No', 'Latitude', 'longtitude', 'longitude', 'Lokasi', 'Kota', 
                  'Tanggal', 'Perukyat', 'Visibility', 'Target', 'Keterangan']
     
@@ -82,7 +105,7 @@ def train_model():
 
     print(f"✅ Fitur Training ({len(X.columns)}): {list(X.columns)}")
 
-    # 4. Arsitektur Model: StandardScaler + Logistic Regression
+    # 4. Arsitektur Model
     pipeline = Pipeline([
         ('scaler', StandardScaler()), 
         ('model', LogisticRegression(class_weight='balanced', random_state=42, max_iter=1000))
@@ -104,6 +127,7 @@ def train_model():
 # ==============================================================================
 def hitung_astronomi(lat, lon, tgl_str):
     print("🔭 Menghitung Hisab Posisi Bulan...")
+    # ... (Kode hitung_astronomi) ...
     try:
         eph = load('de421.bsp')
     except:
@@ -128,7 +152,6 @@ def hitung_astronomi(lat, lon, tgl_str):
         
         if t_sunset is None: return None
 
-        # Posisi saat Sunset
         astrometric_m = (earth + topos).at(t_sunset).observe(moon)
         apparent_m = astrometric_m.apparent()
         apparent_s = (earth + topos).at(t_sunset).observe(sun).apparent()
@@ -136,14 +159,13 @@ def hitung_astronomi(lat, lon, tgl_str):
         alt_m, az_m, _ = apparent_m.altaz(pressure_mbar=0)
         alt_s, az_s, _ = apparent_s.altaz(pressure_mbar=0)
         
-        # Lag Time & Parameter Lain (disederhanakan untuk brevity)
         fraction = apparent_m.fraction_illuminated(sun)
 
         return {
             'aD': alt_m.degrees - alt_s.degrees,
             'aL': apparent_m.separation_from(apparent_s).degrees,
             'DAz': az_m.degrees - az_s.degrees,
-            'Lag': 0, 'w': 0, # Placeholder
+            'Lag': 0, 'w': 0,
             'Illuminasi': fraction * 100,
             'Moon_Alt': alt_m.degrees, 'Moon_Az': az_m.degrees,
             'Sun_Az': az_s.degrees, 'Waktu_Sunset': t_sunset
@@ -152,8 +174,8 @@ def hitung_astronomi(lat, lon, tgl_str):
         print(f"❌ Error Hisab: {e}"); return None
 
 def get_cuaca(use_api, lat, lon, tgl, jam_sunset):
+    # ... (Kode get_cuaca) ...
     if use_api:
-        # ... (Kode API Cuaca) ...
         print("☁️ Menghubungi Server Cuaca Open-Meteo...")
         try:
             url = "https://api.open-meteo.com/v1/forecast"
@@ -185,7 +207,7 @@ def get_cuaca(use_api, lat, lon, tgl, jam_sunset):
     }
 
 # ==============================================================================
-# 🔮 MODUL 3: ANTARMUKA PREDIKSI (FIX VISUALISASI KUAT)
+# 🔮 MODUL 3: ANTARMUKA PREDIKSI (MENGGUNAKAN FUNGSI UNIVERSAL)
 # ==============================================================================
 def predict_future():
     print("\n[ SISTEM ] MODUL PREDIKSI & VISUALISASI")
@@ -231,7 +253,7 @@ def predict_future():
     # Susun Data Input AI
     input_data = pd.DataFrame([{
         'aD': astro['aD'], 'aL': astro['aL'], 'DAz': astro['DAz'], 
-        'Lag': 0, 'w': 0, # Gunakan 0 jika tidak dihitung
+        'Lag': 0, 'w': 0, 
         'Illuminasi': astro['Illuminasi'],
         'Suhu_Atmosfer_C': cuaca['Suhu_Atmosfer_C'],
         'Kelembapan_Pct': cuaca['Kelembapan_Pct'],
@@ -260,10 +282,6 @@ def predict_future():
     print(f"📈 Tingkat Keyakinan: {prob:.2f}%")
     print("-" * 45)
     
-    # --- FIX VISUALISASI TERKUAT ---
-    # Membersihkan output buffer Colab untuk memastikan figure dirender.
-    clear_output(wait=True) 
-
     # Visualisasi
     plt.figure(figsize=(10, 6))
     plt.axhline(0, color='black', lw=2)
@@ -283,22 +301,19 @@ def predict_future():
     plt.xlim(mid - 8, mid + 8)
     plt.ylim(-3, max(astro['Moon_Alt']+5, 5))
     
-    # Memaksa render menggunakan IPython.display
-    display(plt.gcf())
-    plt.close()
+    # --- PANGGIL FUNGSI UNIVERSAL (FIX TERAKHIR) ---
+    tampilkan_plot_universal(plt.gcf(), is_interactive_mode=True)
     
     # Cetak ulang ringkasan hasil teks agar muncul di bawah grafik
     print("\n" + "="*45)
     print(f"🌙 HASIL PREDIKSI AI: {status}")
     print(f"📈 Tingkat Keyakinan: {prob:.2f}%")
     print("="*45)
-    # -------------------------------------------------------
 
 # ==============================================================================
 # 🚀 MENU UTAMA
 # ==============================================================================
 if __name__ == "__main__":
-    # PENTING: Jalankan %matplotlib inline di sel Colab sebelum skrip ini!
     while True:
         print("\n=== 🌙 SISTEM HILAL AI ===")
         print("1. Latih Model AI (Training)")
