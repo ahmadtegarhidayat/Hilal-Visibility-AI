@@ -396,8 +396,6 @@ def predict_future():
     Lebar (w)   : {astro['w']:.4f} moa
     Lag         : {astro['Lag']:.2f} menit
     Umur Bulan  : {astro['Umur_Bulan']}
-    Yallop q    : {astro['Yallop_q']:.3f}
-    Ket. Yallop : {astro['Yallop_Desc']}
     
     [ KONDISI CUACA ]
     Langit      : {cuaca['Deskripsi']}
@@ -419,12 +417,12 @@ def predict_future():
 
     # Tombol Status (Posisi Y diturunkan agar tidak tabrakan)
     rect_status = dict(boxstyle="round,pad=0.7", fc=bg_status, ec="black")
-    ax_text.text(0.5, 0.01, status_ai, transform=ax_text.transAxes, fontsize=15, 
+    ax_text.text(0.2, 0.02, status_ai, transform=ax_text.transAxes, fontsize=15, 
                  color='white', fontweight='bold', ha='center', va='center', bbox=rect_status)
     
     # Alasan Penolakan (Posisi di bawah tombol)
     if reject_reason:
-        ax_text.text(0.5, 0.01, f"(! {reject_reason} !)", transform=ax_text.transAxes, 
+        ax_text.text(0.2, 0.02, f"(! {reject_reason} !)", transform=ax_text.transAxes, 
                      fontsize=10, color='#dc2626', ha='center', fontweight='bold')
     
     print("\n" + "="*30)
@@ -462,4 +460,5 @@ if __name__ == "__main__":
                 input("⚠️ Pilihan tidak valid. Tekan Enter...")
         except KeyboardInterrupt:
             print("\nKeluar paksa..."); break
+
 
