@@ -23,7 +23,7 @@ warnings.filterwarnings('ignore')
 # ⚙️ KONFIGURASI SISTEM (DEFAULT: UIN WALISONGO)
 # ==============================================================================
 FILENAME_CSV   = 'dataset.csv'
-FILENAME_MODEL = 'model_klasifikasi_terbaik.joblib'.joblib'
+FILENAME_MODEL = 'model_klasifikasi_terbaiK.joblib'
 
 # Default Location: Observatorium UIN Walisongo Semarang
 DEF_NAME = "Observatorium UIN Walisongo"
@@ -306,3 +306,4 @@ if __name__ == "__main__":
         elif p == '3': 
             print("👋 Wassalamualaikum."); break
         else: print("❌ Pilihan tidak valid.")
+
