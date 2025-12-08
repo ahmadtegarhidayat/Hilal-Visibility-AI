@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -290,6 +289,7 @@ def predict_future():
     plt.ylim(-3, max(astro['Moon_Alt']+5, 5))
     
     plt.show()
+    plt.close()
 
 # ==============================================================================
 # 🚀 MENU UTAMA
@@ -307,6 +307,7 @@ if __name__ == "__main__":
         elif p == '3': 
             print("👋 Wassalamualaikum."); break
         else: print("❌ Pilihan tidak valid.")
+
 
 
 
