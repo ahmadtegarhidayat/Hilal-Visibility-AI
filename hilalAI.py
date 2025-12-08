@@ -9,7 +9,7 @@ import warnings
 from datetime import datetime
 from skyfield.api import load, wgs84
 from skyfield import almanac
-from IPython.display import display
+from IPython.display import display, clear_output
 
 # Machine Learning Libs
 from sklearn.model_selection import train_test_split
@@ -270,6 +270,8 @@ def predict_future():
     print(f"📈 Tingkat Keyakinan: {prob:.2f}%")
     print("-" * 45)
 
+    clear_output(wait=True)
+
     # Visualisasi
     plt.figure(figsize=(10, 6))
     plt.axhline(0, color='black', lw=2)
@@ -291,6 +293,10 @@ def predict_future():
     
     display(plt.gcf())
     plt.close()
+    print("\n" + "="*45)
+    print(f"🌙 HASIL PREDIKSI AI: {status}")
+    print("="*45)
+    print(f"📈 Tingkat Keyakinan: {prob:.2f}%")
 
 # ==============================================================================
 # 🚀 MENU UTAMA
@@ -308,6 +314,7 @@ if __name__ == "__main__":
         elif p == '3': 
             print("👋 Wassalamualaikum."); break
         else: print("❌ Pilihan tidak valid.")
+
 
 
 
