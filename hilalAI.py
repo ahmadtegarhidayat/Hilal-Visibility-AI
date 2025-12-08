@@ -9,6 +9,7 @@ import warnings
 from datetime import datetime
 from skyfield.api import load, wgs84
 from skyfield import almanac
+from IPython.display import display
 
 # Machine Learning Libs
 from sklearn.model_selection import train_test_split
@@ -288,7 +289,7 @@ def predict_future():
     plt.xlim(mid - 8, mid + 8)
     plt.ylim(-3, max(astro['Moon_Alt']+5, 5))
     
-    plt.show()
+    display(plt.gcf())
     plt.close()
 
 # ==============================================================================
@@ -307,6 +308,7 @@ if __name__ == "__main__":
         elif p == '3': 
             print("👋 Wassalamualaikum."); break
         else: print("❌ Pilihan tidak valid.")
+
 
 
 
