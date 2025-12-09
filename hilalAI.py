@@ -260,7 +260,7 @@ def generate_bulk_hisab():
 # 🧠 MENU 1: TRAINING AI (KOMPREHENSIF)
 # ==============================================================================
 def train_model():
-    print("\n[ MODUL 1 ] TRAINING & EVALUASI MODEL AI")
+    print("\n[ MODUL 1 ] TRAINING & EVALUASI MODEL MACHINE LEARNING")
     print("-" * 50)
     
     # 1. Cek Dataset
@@ -490,7 +490,7 @@ if __name__ == "__main__":
     while True:
         print_header()
         print("=== MENU UTAMA ===")
-        print("1. Training Model AI (Wajib Dilakukan Pertama)")
+        print("1. Training Model Machine Learning (Wajib Dilakukan Pertama)")
         print("2. Prediksi & Dashboard Hilal (Single Date)")
         print("3. Generator Data Hisab Massal (Dari CSV)")
         print("4. Keluar")
@@ -507,4 +507,5 @@ if __name__ == "__main__":
                 input("⚠️ Pilihan tidak valid. Tekan Enter...")
         except KeyboardInterrupt:
             print("\nKeluar paksa..."); break
+
 
