@@ -1,6 +1,6 @@
 """
 ================================================================================
-🌙 SISTEM CERDAS RUKYATUL HILAL & PENENTUAN AWAL BULAN (AI-BASED)
+🌙 SISTEM PREDIKSI VISIBILITAS HILAL MENGGUNAKAN ALGORITMA MACHINE LEARNING
 ================================================================================
 👨‍💻 CREATOR  : Ahmad Tegar Hidayat
 🎓 STATUS   : Mahasiswa Ilmu Falak UIN Walisongo Semarang
@@ -507,3 +507,4 @@ if __name__ == "__main__":
                 input("⚠️ Pilihan tidak valid. Tekan Enter...")
         except KeyboardInterrupt:
             print("\nKeluar paksa..."); break
+
