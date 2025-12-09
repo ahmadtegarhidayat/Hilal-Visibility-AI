@@ -62,7 +62,7 @@ def clear_screen():
 def print_header():
     clear_screen()
     print("="*75)
-    print("🌙  SISTEM PREDIKSI HILAL & GENERATOR DATA HISAB AI (Ultimate Ver.)")
+    print("🌙 SISTEM PREDIKSI VISIBILITAS HILAL MENGGUNAKAN ALGORITMA MACHINE LEARNING")
     print("="*75)
     print(f"👨‍💻  Created by : Ahmad Tegar Hidayat")
     print(f"🎓  Afiliasi   : Ilmu Falak - UIN Walisongo Semarang")
@@ -507,5 +507,6 @@ if __name__ == "__main__":
                 input("⚠️ Pilihan tidak valid. Tekan Enter...")
         except KeyboardInterrupt:
             print("\nKeluar paksa..."); break
+
 
 
