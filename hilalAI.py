@@ -42,11 +42,10 @@ check_library("scikit-learn", "scikit-learn")
 from hijridate import Gregorian
 from skyfield.api import load, wgs84
 from skyfield import almanac
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier  # <-- Penting!
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, classification_report
-
 warnings.filterwarnings('ignore')
 
 # ==============================================================================
@@ -304,8 +303,11 @@ def generate_bulk_hisab():
 # ==============================================================================
 # 🧠 MENU 1: TRAINING AI
 # ==============================================================================
+# ==============================================================================
+# 🧠 MENU 1: TRAINING AI (UPDATED: GRADIENT BOOSTING)
+# ==============================================================================
 def train_model():
-    print("\n[ MODUL 1 ] TRAINING & EVALUASI MODEL MACHINE LEARNING")
+    print("\n[ MODUL 1 ] TRAINING & EVALUASI MODEL (GRADIENT BOOSTING)")
     print("-" * 50)
     
     if not os.path.exists(FILENAME_CSV):
@@ -318,7 +320,8 @@ def train_model():
         print(f"❌ Gagal membaca CSV: {e}"); pause_return_menu(); return
 
     df.columns = df.columns.str.replace('ï»¿', '').str.strip()
-    # Normalisasi data jika masih dalam format ratusan (misal 500 = 5 derajat)
+    
+    # Normalisasi data
     if 'aD' in df.columns and df['aD'].max() > 100: 
         for c in ['aD', 'aL', 'DAz', 'Lag']: 
             if c in df.columns: df[c] = df[c] / 1000
@@ -336,8 +339,20 @@ def train_model():
     y = df['Target']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    print(f"🤖 Melatih model dengan {len(X_train)} data latih...")
-    pipeline = Pipeline([('model', RandomForestClassifier(n_estimators=200, random_state=42))])
+    print(f"🤖 Melatih Gradient Boosting dengan {len(X_train)} data latih...")
+    
+    # --- PERUBAHAN ALGORITMA DI SINI ---
+    # Menggunakan GradientBoostingClassifier menggantikan RandomForest
+    pipeline = Pipeline([
+        ('model', GradientBoostingClassifier(
+            n_estimators=200, 
+            learning_rate=0.1, 
+            max_depth=3, 
+            random_state=42
+        ))
+    ])
+    # -----------------------------------
+    
     pipeline.fit(X_train, y_train)
     
     y_pred = pipeline.predict(X_test)
@@ -354,7 +369,7 @@ def train_model():
     print("="*50)
 
     joblib.dump({'pipeline': pipeline, 'accuracy': acc, 'f1': f1}, FILENAME_MODEL)
-    print(f"✅ Model berhasil disimpan ke: {FILENAME_MODEL}")
+    print(f"✅ Model Gradient Boosting berhasil disimpan ke: {FILENAME_MODEL}")
     pause_return_menu()
 
 # ==============================================================================
