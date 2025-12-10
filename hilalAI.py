@@ -99,7 +99,7 @@ def tampilkan_menu_utama():
     """Menampilkan desain menu utama dengan Identitas Creator."""
     clear_screen()
     print("\033[1;36m" + "="*75 + "\033[0m")
-    print("🌙  SISTEM PREDIKSI VISIBILITAS HILAL AI")
+    print("🌙 SISTEM PREDIKSI VISIBILITAS HILAL MENGGUNAKAN ALGORITMA MACHINE LEARNING")
     print("\033[1;36m" + "="*75 + "\033[0m")
     
     print(f" 👨‍💻 Creator  : {CREATOR_NAME}")
@@ -601,4 +601,5 @@ if __name__ == "__main__":
         except Exception as e: 
             print(f"\n❌ Error Fatal: {e}")
             input("Enter untuk restart sistem...")
+
 
