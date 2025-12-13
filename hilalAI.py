@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from matplotlib.patches import Circle
 
 # ==============================================================================
-# 🛠️ DEPENDENCY CHECKER
+# DEPENDENCY CHECKER
 # ==============================================================================
 def check_library(lib_name, install_cmd):
     """Memastikan library yang dibutuhkan sudah terinstall."""
@@ -49,7 +49,7 @@ from sklearn.metrics import accuracy_score, f1_score, classification_report
 warnings.filterwarnings('ignore')
 
 # ==============================================================================
-# ⚙️ KONFIGURASI SISTEM (CONSTANTS)
+# KONFIGURASI SISTEM (CONSTANTS)
 # ==============================================================================
 FILENAME_CSV    = 'data_set_rukyat_ml.csv'
 FILENAME_MODEL  = 'model_hilal_rf.pkl'
@@ -72,7 +72,7 @@ NAMA_BULAN_HIJRI = [
 ]
 
 # ==============================================================================
-# 🖌️ TAMPILAN & UTILITAS UI
+# TAMPILAN & UTILITAS UI
 # ==============================================================================
 def clear_screen():
     command = 'cls' if os.name == 'nt' else 'clear'
@@ -115,7 +115,7 @@ def tampilkan_menu_utama():
     print("\n" + "-"*75)
 
 # ==============================================================================
-# 🔭 ENGINE ASTRONOMI (SKYFIELD)
+#    ENGINE ASTRONOMI (SKYFIELD)
 # ==============================================================================
 def hitung_astronomi(lat, lon, tgl_str, verbose=True):
     if verbose: print("🔭 Menghitung data hisab ephemeris...", end="\r")
@@ -201,7 +201,7 @@ def hitung_astronomi(lat, lon, tgl_str, verbose=True):
         return None
 
 # ==============================================================================
-# ☁️ ENGINE CUACA (OPEN-METEO API)
+#   ENGINE CUACA (OPEN-METEO API)
 # ==============================================================================
 def get_cuaca(use_api, lat, lon, tgl, jam_sunset_lokal=18):
     # Data Default / Simulasi
@@ -244,7 +244,7 @@ def get_cuaca(use_api, lat, lon, tgl, jam_sunset_lokal=18):
     return data
 
 # ==============================================================================
-# 🧮 MENU 3: GENERATOR DATA HISAB MASSAL
+#    MENU 3: GENERATOR DATA HISAB MASSAL
 # ==============================================================================
 def generate_bulk_hisab():
     print("\n[ MODUL 3 ] GENERATOR DATA HISAB MASSAL")
@@ -301,10 +301,7 @@ def generate_bulk_hisab():
     pause_return_menu()
 
 # ==============================================================================
-# 🧠 MENU 1: TRAINING AI
-# ==============================================================================
-# ==============================================================================
-# 🧠 MENU 1: TRAINING AI (UPDATED: GRADIENT BOOSTING)
+# MENU 1: TRAINING AI (UPDATED: GRADIENT BOOSTING)
 # ==============================================================================
 def train_model():
     print("\n[ MODUL 1 ] TRAINING & EVALUASI MODEL (GRADIENT BOOSTING)")
@@ -341,8 +338,7 @@ def train_model():
 
     print(f"🤖 Melatih Gradient Boosting dengan {len(X_train)} data latih...")
     
-    # --- PERUBAHAN ALGORITMA DI SINI ---
-    # Menggunakan GradientBoostingClassifier menggantikan RandomForest
+    #
     pipeline = Pipeline([
         ('model', GradientBoostingClassifier(
             n_estimators=200, 
@@ -373,7 +369,7 @@ def train_model():
     pause_return_menu()
 
 # ==============================================================================
-# 🚀 MENU 2: PREDIKSI & DASHBOARD
+#    MENU 2: PREDIKSI & DASHBOARD
 # ==============================================================================
 def predict_future():
     print("\n[ MODUL 2 ] PREDIKSI & VISUALISASI")
@@ -424,7 +420,6 @@ def predict_future():
     prob_ai = model.predict_proba(input_data)[:, 1][0] * 100
     
     # --- LOGIKA KEPUTUSAN HYBRID (AI + FISIKA) ---
-    
     # 1. Cek Fisika Dasar (Qobla Ghurub)
     if astro['Lag'] < 0:
         prob_ai = 0.0
@@ -453,7 +448,7 @@ def predict_future():
             status_ai = "KEMUNGKINAN TIDAK TERLIHAT"
 
     # ==========================================
-    # [LOGIC FIX] PENENTUAN AWAL BULAN
+    #        PENENTUAN AWAL BULAN
     # ==========================================
     idx_bulan_depan = h_today.month % 12 
     nama_bulan_baru = NAMA_BULAN_HIJRI[idx_bulan_depan]
@@ -464,7 +459,7 @@ def predict_future():
         tgl_awal_bulan = tgl_objek + timedelta(days=2)
         ket_awal_bulan = f"1 {nama_bulan_baru} (Istikmal)"
     else:
-        # Rukyatul Hilal (BESOK)
+        # Rukyatul Hilal 
         tgl_awal_bulan = tgl_objek + timedelta(days=1)
         ket_awal_bulan = f"1 {nama_bulan_baru} (Rukyatul Hilal)"
 
@@ -601,5 +596,6 @@ if __name__ == "__main__":
         except Exception as e: 
             print(f"\n❌ Error Fatal: {e}")
             input("Enter untuk restart sistem...")
+
 
 
